@@ -1,0 +1,381 @@
+<article class="guide">
+  <carousel class="deck container-fluid">
+    <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>1 - Graph Building</h3>
+        <p>
+          The Bachelor of Food focuses on breakfast foods.
+        </p>
+        <p>The graph is comprised of</p>
+        <ol>
+          <li>One degree node, related to 5 graduation rule nodes.</li>
+          <li>The rules are for min. points at levels 1 - 4 and min total points.</li>
+          <li>There are units at 6 levels, although levels 5 & 6 are optional.</li>
+          <li>Each unit node includes an id, code, title, points and level.</li>
+          <li>Prohibitions are a relationship between unit nodes.</li>
+          <li>Prerequisites are grouped, as per detailed PDF info.</li>
+          <li>Students will be added in later slides.</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Importing units and their relationships.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable"> MATCH (n) DETACH DELETE n;
+CREATE CONSTRAINT ON (u:Unit) ASSERT u.code IS UNIQUE;
+CREATE CONSTRAINT ON (a:AndGroup) ASSERT a.id IS UNIQUE;
+
+LOAD CSV WITH HEADERS from 'file:///units.csv' AS row
+WITH row WHERE row.unitID IS NOT NULL
+MERGE (foundation:Unit {id: row.unitID, code: row.code, title: row.title, cp: toInteger(row.points), level: toInteger(row.level)})
+
+WITH row WHERE row.groupID IS NOT NULL
+MERGE (u:Unit {id: row.unitID, code: row.code, title: row.title, cp: toInteger(row.points), level: toInteger(row.level)})
+MERGE (a:AndGroup {groupID: row.groupID})
+MERGE (u)-[:AND]->(a)
+
+WITH row WHERE row.groupID IS NOT NULL
+MATCH (a:AndGroup {groupID:row.groupID})
+MATCH (pre:Unit {code:row.prereq})
+CREATE (a)-[:OR]->(pre)
+
+WITH row WHERE row.prohib IS NOT NULL
+MATCH (u:Unit {id:row.unitID})
+MATCH (p:Unit {code:row.prohib})
+MERGE (p)-[:PROHIBITS]->(u);
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Importing the degree with graduation rules.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+LOAD CSV WITH HEADERS from 'file:///degree.csv' AS row
+WITH row WHERE row.degree IS NOT NULL
+MERGE (d:Degree {name: row.degree})
+MERGE (r:Rule{name: row.rule, minCP: toInteger(row.minCP)})
+MERGE (d)-[:REQUIRES]->(r);
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+    <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>2 - Inspecting the Data</h3>
+        <p>
+          We run 4 queries to find units with:
+        </p>
+        <ol>
+          <li>no prerequisites.</li>
+          <li>some prohibitions, showing the count of prohibitions.</li>
+          <li>simple prereqs, eg. (A or B or C)</li>
+          <li>complex prereqs, eg. (A or B) and (C or D)</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Units with no prereqs.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH (u:Unit)
+WHERE NOT (u:Unit)-[:AND]->(:AndGroup)
+RETURN u;
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Units with prohibitions, and prohibition count.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH (pro:Unit)-[p:PROHIBITS]->(u:Unit)
+RETURN u.code, u.title, COUNT(u)
+ORDER BY COUNT(u) DESC;
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Units with simple prereqs.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH (a:AndGroup)<-[and:AND]-(u:Unit)
+WITH COUNT(a.groupID) AS groupsLinkedByAnd, u as theUnit
+WHERE groupsLinkedByAnd = 1
+RETURN theUnit.code, theUnit.title, groupsLinkedByAnd;
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Units with complex prereqs.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH (a:AndGroup)<-[and:AND]-(u:Unit)
+WITH COUNT(a.groupID) AS groupsLinkedByAnd, u as theUnit
+WHERE groupsLinkedByAnd > 1
+RETURN theUnit.code, theUnit.title, groupsLinkedByAnd;
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+     <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>3 - Gordon's prohibitions.</h3>
+        <p>
+          We check if a given student can study a given unit based on prohibitions.
+        </p>
+        <ol>
+          <li>Gordon is prohibited to study TO103, as he studied TO104.</li>
+          <li>Gordon may study COF402, as he hasn't taken COF303 (COF303 prohibits COF402).</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Importing Gordon's info.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+LOAD CSV WITH HEADERS from 'file:///gordon.csv' AS row
+WITH row WHERE row.name IS NOT NULL
+MERGE(s:Student {name: row.name})
+MERGE (u:Unit {code: row.studied})
+MERGE (s)-[:STUDIED]->(u)
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="fields">
+              <div class="field">
+                <label>Unit code:</label>
+                  <input value-for="unit-code" type="text" id="unit-code" value="eg. SOU405">
+              </div>
+            </div>
+            <label>Is the given unit prohibited?</label>
+            <pre style="color: #333" class="pre-scrollable code runnable"> MATCH (u:Unit {code:'<span value-key="unit-code">eg. SOU405</span>'})<-[ :PROHIBITS]-(pro:Unit)<-[ :STUDIED]-(s:Student {name:'Gordon'}) RETURN (COUNT(*)=0);
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+     <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>4 - Gordon's prerequisites.</h3>
+        <p>
+          We check if a given student can study a given unit based on prerequisites.
+        </p>
+        <ol>
+          <li>Gordon can study SOU305, which has or-linked prereqs.</li>
+          <li>Gordon can study CAP406, which has and- and or-linked prereqs.</li>
+          <li>Gordon can not study COF501, which has and- and or-linked prereqs.</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Mering Gordon's info (again) in case slide 3 was skipped.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+LOAD CSV WITH HEADERS from 'file:///gordon.csv' AS row
+WITH row WHERE row.name IS NOT NULL
+MERGE(s:Student {name: row.name})
+MERGE (u:Unit {code: row.studied})
+MERGE (s)-[:STUDIED]->(u)
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="fields">
+              <div class="field">
+                <label>Unit code:</label>
+                  <input value-for="unit-code" type="text" id="unit-code" value="eg. SOU405">
+              </div>
+            </div>
+            <label>Is the given unit allowed?</label>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+            CALL {
+  MATCH (givenUnit:Unit {code:'<span value-key="unit-code">eg. SOU405</span>'})-[ :AND]->(group:AndGroup)-[ :OR]->(prereq:Unit)<-[ :STUDIED]-(s:Student {name:'Gordon'})
+  RETURN COUNT(DISTINCT(group.groupID)) AS a
+UNION
+  MATCH (givenUnit:Unit {code:'<span value-key="unit-code">eg. SOU405</span>'})-[ :AND]->(group:AndGroup)
+  RETURN COUNT(DISTINCT(group.groupID)) AS a
+}
+RETURN COUNT(a)=1;
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+ <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>5 - Can Nigella Graduate?</h3>
+        <p>
+          We check whether Nigella can graduate.
+        </p>
+        <p>
+          This is her current standing:
+        </p>
+        <ol>
+          <li>Total completed points: 85, min: 80.</li>
+          <li>Level 1 points: 20, min: 15.</li>
+          <li>Level 2 points: 30, min: 15.</li>
+          <li>Level 3 points: 25, min: 15.</li>
+          <li>Level 4 points: 10, min: 15 - not complete.</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+      <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Importing Nigella's info.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+LOAD CSV WITH HEADERS from 'file:///nigella.csv' AS row
+WITH row WHERE row.name IS NOT NULL
+MERGE(s:Student {name: row.name})
+MERGE (u:Unit {code: row.studied})
+MERGE (s)-[:STUDIED]->(u);
+            </pre>
+          </div>
+        </div>
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Checking degree rules.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+CALL {
+  MATCH (u:Unit {level:1})<-[ :STUDIED]-(s:Student {name:'Nigella'})
+  WITH SUM (u.cp) as completed
+  MATCH (d:Degree)-[:REQUIRES]->(r:Rule {name: 'week 1'})
+  RETURN r.name, completed>r.minCP
+UNION
+  MATCH (u:Unit {level:2})<-[ :STUDIED]-(s:Student {name:'Nigella'})
+  WITH SUM (u.cp) as completed
+  MATCH (d:Degree)-[:REQUIRES]->(r:Rule {name: 'week 2'})
+  RETURN r.name, completed>r.minCP
+UNION
+  MATCH (u:Unit {level:3})<-[ :STUDIED]-(s:Student {name:'Nigella'})
+  WITH SUM (u.cp) as completed
+  MATCH (d:Degree)-[:REQUIRES]->(r:Rule {name: 'week 3'})
+  RETURN r.name, completed>r.minCP
+UNION
+  MATCH (u:Unit {level:4})<-[ :STUDIED]-(s:Student {name:'Nigella'})
+  WITH SUM (u.cp) as completed
+  MATCH (d:Degree)-[:REQUIRES]->(r:Rule {name: 'week 4'})
+  RETURN r.name, completed>r.minCP
+UNION
+  MATCH (u:Unit)<-[ :STUDIED]-(s:Student {name:'Nigella'})
+  WITH SUM (u.cp) as completed
+  MATCH (d:Degree)-[:REQUIRES]->(r:Rule {name: 'total'})
+  RETURN r.name, completed>r.minCP
+}
+RETURN *;
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+    <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>6 - Prerequisite Chains</h3>
+        <p>
+          We find prereq. chains for a given unit.
+        </p>
+        <ol>
+          <li>MU301 has max chain length 2 levels = 3 units total.</li>
+          <li>COF501 has max chain length 3 levels = 5 units total.</li>
+          <li>COF601 has max chain length 4 levels = 5 units total.</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="fields">
+              <div class="field">
+                <label>Unit code:</label>
+                  <input value-for="unit-code" type="text" id="person-name" value="eg. SOU405">
+                </div>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable"> MATCH p = (u:Unit {code:'<span value-key="unit-code">eg. SOU405</span>'})-[ :AND|OR*]->(prereq:Unit) WHERE prereq.level = 1 RETURN p;</pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+    <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>7 - Popular Foundation Units</h3>
+        <p>
+          We find the most popular foundation (level 1) unit.
+        </p>
+        <ol>
+          <li>For each foundation unit, we count all units that include it in their prereq chain.</li>
+          <li>If A is a prereq for B, and B is a prereq for C, A is counted twice intentionally.</li>
+          <li>Unit MU101 - Make Cereal is the most popular.</li>
+        </ol>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Finding the most popular foundation unit.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH p = (u:Unit )-[ :AND|OR*]->(foundation:Unit)
+WHERE foundation.level = 1
+RETURN foundation.code, foundation.title, COUNT(p) AS dependantUnits
+ORDER BY COUNT(p) DESC
+LIMIT 1;
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+    <slide class="row-fluid">
+      <div class="col-sm-3">
+        <h3>8 - Conclusion</h3>
+        <p>
+          Thank you!
+        </p>
+        <hr>
+      </div>
+      <div class="col-sm-9 ui basic segment">
+        <div class="ui card fluid">
+          <div class="ui form content">
+            <div class="inline field">
+              <label>Clearing the graph and schema.</label>
+            </div>
+            <pre style="color: #333" class="pre-scrollable code runnable">
+MATCH (n) DETACH DELETE n;
+
+DROP CONSTRAINT ON (u:Unit) ASSERT u.code IS UNIQUE;
+DROP CONSTRAINT ON (a:AndGroup) ASSERT a.id IS UNIQUE;
+            </pre>
+          </div>
+        </div>
+      </div>
+    </slide>
+  </carousel>
+</article>

@@ -1,0 +1,56 @@
+﻿unitID,code,title,points,level,groupID,prereq,prohib
+1,MU101,Make Cereal,5,1,,,
+2,MU102,Make Muesli,5,1,,,
+,,,,,,,
+6,MU201,Porridge,5,2,1,MU101,
+7,MU202,Advanced Muesli,5,2,2,MU102,
+13,MU301,Ultimate Healthiest Muesli,5,3,3,MU202,
+,,,,,,,
+3,TO103,Don't Burn Toast,5,1,10,MU101,TO104
+4,TO104,Don't Burn Toast (Adv),5,1,11,MU101,TO103
+8,TO203,Toast for Any Occaision,5,2,12,TO103,
+8,TO203,Toast for Any Occaision,5,2,12,TO104,
+14,TO302,French Toast and Toasties,5,3,20,TO203,
+14,TO302,French Toast and Toasties,5,3,20,TO103,
+14,TO302,French Toast and Toasties,5,3,21,TO203,
+14,TO302,French Toast and Toasties,5,3,22,TO103,
+14,TO302,French Toast and Toasties,5,3,22,TO104,
+,,,,,,,
+11,SOU206,Soups and Smoothies 1,5,2,30,MU101,
+17,SOU305,Soups and Smoothies 2,5,3,31,MU202,
+17,SOU305,Soups and Smoothies 2,5,3,31,SOU206,
+22,SOU405,Soups and Smoothies 3,5,4,32,SOU305,
+,,,,,,,
+12,PA207,Pasta Sauces Of All Colours,5,2,40,COF204,
+12,PA207,Pasta Sauces Of All Colours,5,2,40,MU101,
+18,PA401,Pasta - Beyond the Sauce,5,4,42,PA207,
+18,PA401,Pasta - Beyond the Sauce,5,4,42,SOU206,
+,,,,,,,
+5,COF105,Intro to Tea and Coffee,5,1,,,
+9,COF204,Herbal Tea in a Global Context,5,2,50,COF105,
+,,,,,,,
+15,COF303,Barista Coffee - Why Bother?,5,3,,,
+15,COF303,Barista Coffee - Why Bother?,5,3,,,
+15,COF303,Barista Coffee - Why Bother?,5,3,,,
+,,,,,,,
+16,COF304,Barista Coffee - Beginner Techniques,5,3,,,
+10,COF305,Filter Coffee Techniques,5,3,,,
+19,COF402,Barista Coffee - Frothing Fundamentals,5,4,60,COF304,COF303
+20,COF403,Barista Coffee - Bean Origin and Roasting,5,4,61,COF305,COF303
+21,COF404,Barista Coffee - Yet Another Unit,5,4,62,COF304,COF303
+,,,,,,,
+24,COF501,Barista Coffee - Advanced Techniques,5,5,70,SOU206,COF303
+24,COF501,Barista Coffee - Advanced Techniques,5,5,70,PA207,PA401
+24,COF501,Barista Coffee - Advanced Techniques,5,5,71,COF304,SOU405
+24,COF501,Barista Coffee - Advanced Techniques,5,5,71,COF305,
+24,COF501,Barista Coffee - Advanced Techniques,5,5,72,COF402,
+24,COF501,Barista Coffee - Advanced Techniques,5,5,72,COF403,
+24,COF501,Barista Coffee - Advanced Techniques,5,5,72,COF404,
+,,,,,,,
+25,COF601,Barista Coffee - Super Duper Techniques,5,6,80,COF501,COF303
+,,,,,,,
+23,CAP406,Breakfast - Capstone Project,5,4,90,COF304,
+23,CAP406,Breakfast - Capstone Project,5,4,90,COF305,
+23,CAP406,Breakfast - Capstone Project,5,4,91,MU101,
+23,CAP406,Breakfast - Capstone Project,5,4,91,MU201,
+23,CAP406,Breakfast - Capstone Project,5,4,92,SOU206,

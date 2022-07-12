@@ -1,0 +1,6 @@
+﻿name,studied,,question,unit,reason
+Gordon,MU101,,Not completed prereques:,COF501,didn't study COF40x
+Gordon,TO104,,Completed complex prereques:,CAP406,"(studied COF304, MU101, SOU206)"
+Gordon,SOU206,,Completed simple prereques:,SOU305,"(studied SOU206, MU101)"
+Gordon,SOU305,,Prohibited from:,TO203,studied TO104
+Gordon,COF304,,Not prohibited from:,COF305,didn't study COF303
